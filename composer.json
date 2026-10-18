@@ -1,0 +1,90 @@
+{
+  "name": "alfasix/alfakit-cms",
+  "description": "A headless-friendly CMS for AlfaKit: block-based pages with drafts, scheduling, revisions and signed previews, SEO, sitemap and robots, redirects, menus, a public Inertia route with React, Vue and Svelte block renderers, and a read-only JSON API.",
+  "keywords": [
+    "laravel",
+    "alfakit",
+    "cms",
+    "pages",
+    "blocks",
+    "seo",
+    "headless",
+    "inertia"
+  ],
+  "homepage": "https://alfakit.dev/docs/plugins/cms",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Alfa Six",
+      "homepage": "https://alfasixbh.com",
+      "role": "Developer"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/alfasixbh/alfakit/issues",
+    "source": "https://github.com/alfasixbh/alfakit/tree/main/packages/plugins/cms"
+  },
+  "require": {
+    "php": "^8.3",
+    "alfasix/alfakit": "^0.1|@dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "AlfaSix\\AlfakitCms\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "AlfaSix\\AlfakitCms\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "AlfaSix\\AlfakitCms\\AlfakitCmsServiceProvider"
+      ]
+    },
+    "alfakit": {
+      "version": "^0.1",
+      "frontend": null,
+      "showcase": {
+        "demoPath": "cms/pages",
+        "tour": [
+          "Open Content > Pages",
+          "Edit a page with blocks",
+          "Preview the draft with a signed link",
+          "Manage menus and redirects"
+        ],
+        "clips": [
+          "react-light",
+          "react-dark",
+          "vue-light",
+          "vue-dark",
+          "svelte-light",
+          "svelte-dark"
+        ],
+        "worksWith": [
+          "media-library",
+          "forms",
+          "analytics",
+          "translation-manager"
+        ],
+        "highlights": [
+          "Block-based pages with drafts and revisions",
+          "Scheduling and signed previews",
+          "SEO fields, sitemap and robots",
+          "Redirects and menus",
+          "Public Inertia route with React, Vue and Svelte blocks",
+          "Read-only JSON API",
+          "Multilingual pages"
+        ]
+      }
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
