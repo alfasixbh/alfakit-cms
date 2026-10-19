@@ -1,6 +1,8 @@
 # AlfaKit CMS
 
-<p><picture><source media="(prefers-color-scheme: dark)" srcset="../../../art/alfasix/alfa-six-micro-white.svg"><img src="../../../art/alfasix/alfa-six-micro-navy.svg" alt="" width="24" height="18" align="top"></picture> <sub>by <a href="https://alfasixbh.com">Alfa Six</a></sub></p>
+<p><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/alfasixbh/alfakit/main/art/alfasix/alfa-six-micro-white.svg"><img src="https://raw.githubusercontent.com/alfasixbh/alfakit/main/art/alfasix/alfa-six-micro-navy.svg" alt="" width="24" height="18" align="top"></picture> <sub>by <a href="https://alfasixbh.com">Alfa Six</a></sub></p>
+
+> This is a read-only split of the [AlfaKit monorepo](https://github.com/alfasixbh/alfakit/tree/main/packages/plugins/cms). Please open issues and pull requests there.
 
 Run your public site from your [AlfaKit](https://alfakit.dev) panel: block-based pages with drafts, autosave and a live preview, scheduling, a review workflow, revisions with plain-language compare, page templates and reusable sections, an SEO helper, `sitemap.xml`, `robots.txt`, redirects and menus. Pages render through Inertia with the same React, Vue or Svelte renderer as the panel, and a read-only JSON API serves headless frontends.
 
