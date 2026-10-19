@@ -8,6 +8,7 @@ use AlfaSix\Alfakit\Actions\Action;
 use AlfaSix\Alfakit\Actions\ActionGroup;
 use AlfaSix\Alfakit\Actions\DeleteAction;
 use AlfaSix\Alfakit\Pages\Attributes\Expose;
+use AlfaSix\Alfakit\Realtime\RecordVersion;
 use AlfaSix\Alfakit\Resources\Pages\EditRecord;
 use AlfaSix\Alfakit\Schemas\Schema;
 use AlfaSix\Alfakit\Support\Enums\Color;
@@ -195,11 +196,15 @@ class EditPage extends EditRecord
      * Autosave the editor's current (unvalidated) state as the page's draft, for the live
      * preview and so nothing typed is lost. Live content never changes here.
      *
+     * The draft is a write of its own: when the editor's loaded version was still current
+     * (`$recordVersion`), the new version is returned so the next save is not refused as a
+     * conflict with the autosave. Someone else's change in between still is.
+     *
      * @param  array<string, mixed>  $state
-     * @return array{savedAt: string|null, hasChanges: bool, previewUrl: string|null}
+     * @return array{savedAt: string|null, hasChanges: bool, previewUrl: string|null, recordVersion: string|null}
      */
     #[Expose(rateLimit: 120)]
-    public function cmsAutosave(array $state = []): array
+    public function cmsAutosave(array $state = [], ?string $recordVersion = null): array
     {
         $record = $this->getRecord();
 
@@ -213,6 +218,8 @@ class EditPage extends EditRecord
             abort(404);
         }
 
+        $current = $recordVersion !== null && $recordVersion !== '' && RecordVersion::matches($record, $recordVersion);
+
         $form->applyClientState($state);
         PageDrafts::store($record, $form->getState());
 
@@ -220,6 +227,7 @@ class EditPage extends EditRecord
             'savedAt' => $record->draft_saved_at?->toAtomString() ?? now()->toAtomString(),
             'hasChanges' => $record->hasPendingChanges(),
             'previewUrl' => Route::has(PreviewLinks::ROUTE) ? PreviewLinks::url($record) : null,
+            'recordVersion' => $current ? RecordVersion::of($record->fresh() ?? $record) : null,
         ];
     }
 }

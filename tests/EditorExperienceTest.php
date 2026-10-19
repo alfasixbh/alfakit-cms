@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use AlfaSix\Alfakit\Realtime\RecordVersion;
 use AlfaSix\AlfakitCms\Enums\PageState;
 use AlfaSix\AlfakitCms\Enums\PageStatus;
 use AlfaSix\AlfakitCms\Models\Page;
@@ -89,6 +90,28 @@ it('autosaves the editor state as a draft for the live preview', function (): vo
 
     Inertia\Inertia::flushShared();
     inertiaGet(PreviewLinks::url($page))->assertJsonPath('props.cms.page.title', 'Typed but not saved');
+});
+
+it('returns the new record version after an autosave so the next save is not a conflict', function (): void {
+    actingAs(cmsUser());
+    $page = cmsPage('Versioned', ['status' => PageStatus::Draft]);
+    $editor = alfakit()->testPage(EditPage::class, ['record' => $page], panel: 'cms');
+    $loaded = RecordVersion::of($page->refresh());
+
+    $state = $editor->getFormState();
+    $state['title'] = 'Typed';
+
+    $version = cmsCall($editor->getToken(), 'cmsAutosave', ['state' => $state, 'recordVersion' => $loaded])
+        ->assertOk()
+        ->json('result.recordVersion');
+
+    expect($version)->toBe(RecordVersion::of($page->refresh()))->not->toBe($loaded);
+
+    // Someone else's change in between: the editor keeps its old version and the save is refused.
+    $state['title'] = 'Typed again';
+    cmsCall($editor->getToken(), 'cmsAutosave', ['state' => $state, 'recordVersion' => $loaded])
+        ->assertOk()
+        ->assertJsonPath('result.recordVersion', null);
 });
 
 it('refuses autosaves from users who cannot edit the page', function (): void {
