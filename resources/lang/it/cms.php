@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'Pubblicazioni annullate',
         'restored' => 'Revisione ripristinata',
         'discarded' => 'Modifiche annullate',
+        'nothing_to_discard' => 'Non ci sono modifiche non pubblicate da annullare',
         'template_saved' => 'Modello salvato',
     ],
 

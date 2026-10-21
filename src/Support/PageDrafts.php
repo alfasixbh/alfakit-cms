@@ -25,11 +25,14 @@ final class PageDrafts
 
     /**
      * Store the revisioned attributes of `$data` as the page's pending changes; the draft
-     * is cleared when they equal the live version.
+     * is cleared when they equal the live version. `$liveFormState` is the live version
+     * as the editor form saves it (its defaults filled in, such as a block's width): an
+     * attribute equal to it is unchanged, although its stored form may differ.
      *
      * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>|null  $liveFormState
      */
-    public static function store(Page $page, array $data): Page
+    public static function store(Page $page, array $data, ?array $liveFormState = null): Page
     {
         $changes = array_intersect_key($data, array_flip(Page::REVISIONED));
 
@@ -41,6 +44,10 @@ final class PageDrafts
         $differs = false;
 
         foreach ($changes as $attribute => $value) {
+            if ($liveFormState !== null && array_key_exists($attribute, $liveFormState) && json_encode($value) === json_encode($liveFormState[$attribute])) {
+                continue;
+            }
+
             if (json_encode($value) !== json_encode($live[$attribute] ?? null)) {
                 $differs = true;
 

@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'Páginas despublicadas',
         'restored' => 'Revisión restaurada',
         'discarded' => 'Cambios descartados',
+        'nothing_to_discard' => 'No hay cambios sin publicar que descartar',
         'template_saved' => 'Plantilla guardada',
     ],
 

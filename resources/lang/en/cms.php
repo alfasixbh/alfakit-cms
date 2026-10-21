@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'Pages unpublished',
         'restored' => 'Revision restored',
         'discarded' => 'Changes discarded',
+        'nothing_to_discard' => 'There are no unpublished changes to discard',
         'template_saved' => 'Template saved',
     ],
 

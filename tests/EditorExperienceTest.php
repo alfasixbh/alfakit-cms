@@ -68,6 +68,64 @@ it('keeps saved changes of a published page as a draft until they are published'
     expect($page->refresh()->hasPendingChanges())->toBeFalse()->and($page->title)->toBe('Live');
 });
 
+it('offers "Discard changes" in the menu of a published page before an autosave makes a draft', function (): void {
+    actingAs(cmsUser());
+    $page = cmsPage('Live menu');
+    // The editor loaded with no draft: the menu (header actions) is not sent again after an autosave.
+    $editor = alfakit()->testPage(EditPage::class, ['record' => $page], panel: 'cms');
+
+    expect(json_encode($editor->getPage()['headerActions']))->toContain('"name":"discardChanges"');
+
+    // Nothing to discard yet: a notice, the live page stays as it is.
+    $editor->callAction('discardChanges')
+        ->assertHasNoActionErrors()
+        ->assertNotified(__('alfakit-cms::cms.notifications.nothing_to_discard'))
+        ->assertNotNotified(__('alfakit-cms::cms.notifications.discarded'));
+    expect($page->refresh()->title)->toBe('Live menu');
+
+    // An autosave then makes a draft; the same menu item discards it.
+    $page->forceFill(['draft' => ['title' => 'Live menu v2']])->save();
+    $editor->callAction('discardChanges')->assertHasNoActionErrors();
+
+    expect($page->refresh()->hasPendingChanges())->toBeFalse()
+        ->and(json_encode(alfakit()->testPage(EditPage::class, ['record' => cmsPage('Draft only', ['status' => PageStatus::Draft])], panel: 'cms')->getPage()['headerActions']))->not->toContain('"name":"discardChanges"');
+});
+
+it('resets the editor form to the live page after "Discard changes", so the next autosave does not bring the draft back', function (): void {
+    actingAs(cmsUser());
+    $page = cmsPage('Live title');
+    $page->forceFill(['draft' => ['title' => 'Draft title'], 'draft_saved_at' => now()])->save();
+    $editor = alfakit()->testPage(EditPage::class, ['record' => $page], panel: 'cms');
+
+    $editor->assertFormSet(['title' => 'Draft title']);
+
+    test()->post('/cms/_alfakit/actions', ['token' => $editor->getToken(), 'component' => 'page', 'action' => 'discardChanges'], AlfaSix\Alfakit\Testing\PageTester::inertiaHeaders())
+        ->assertRedirect();
+
+    // The form in the browser holds the edits (it is dirty): the action tells it to take
+    // the live values instead of keeping them.
+    $refresh = session(Inertia\Support\SessionKey::FLASH_DATA)['alfakitFormRefresh'] ?? null;
+
+    expect($refresh)->toBeArray()
+        ->and($refresh['component'])->toBe('form')
+        ->and($refresh['state']['title'] ?? null)->toBe('Live title')
+        ->and($refresh['state'])->toHaveKey('content');
+
+    // The autosave that follows sends the live values: no draft.
+    $state = $editor->getFormState();
+    $state = [...$state, ...$refresh['state']];
+
+    cmsCall($editor->getToken(), 'cmsAutosave', ['state' => $state])
+        ->assertOk()
+        ->assertJsonPath('result.hasChanges', false);
+
+    expect($page->refresh()->hasPendingChanges())->toBeFalse();
+
+    // A real edit still makes a draft.
+    cmsCall($editor->getToken(), 'cmsAutosave', ['state' => [...$state, 'title' => 'Edited again']])
+        ->assertJsonPath('result.hasChanges', true);
+});
+
 it('autosaves the editor state as a draft for the live preview', function (): void {
     actingAs(cmsUser());
     $page = cmsPage('Autosaved', ['status' => PageStatus::Draft]);
@@ -90,6 +148,28 @@ it('autosaves the editor state as a draft for the live preview', function (): vo
 
     Inertia\Inertia::flushShared();
     inertiaGet(PreviewLinks::url($page))->assertJsonPath('props.cms.page.title', 'Typed but not saved');
+});
+
+it('offers "Publish changes" in the editor bar as soon as an autosave makes a published page differ', function (): void {
+    actingAs(cmsUser());
+    $page = cmsPage('Live');
+    $bar = static fn (): array => collect(AlfaSix\AlfakitCms\Tests\flattenSchema(alfakit()->testPage(EditPage::class, ['record' => $page->refresh()], panel: 'cms')->getPage()['content']))->firstWhere('type', 'CmsLivePreview');
+    $names = static fn (?array $actions): array => array_column(AlfaSix\AlfakitCms\Tests\flattenSchema($actions ?? []), 'name');
+
+    // Published, no draft: no publish button now, "Publish changes" once the draft differs.
+    $preview = $bar();
+
+    expect($names($preview['actions']))->not->toContain('publish')
+        ->and($names($preview['changedActions']))->toContain('publish')
+        ->and(collect($preview['changedActions'])->firstWhere('name', 'publish')['label'] ?? null)->toBe('Publish changes')
+        // Evaluating them changed nothing.
+        ->and($page->refresh()->hasPendingChanges())->toBeFalse();
+
+    // With a draft the actions already have it; there is nothing to switch to.
+    $page->forceFill(['draft' => ['title' => 'Live v2']])->save();
+
+    expect($names($bar()['actions']))->toContain('publish')
+        ->and($bar()['changedActions'] ?? null)->toBeNull();
 });
 
 it('returns the new record version after an autosave so the next save is not a conflict', function (): void {
@@ -260,6 +340,14 @@ it('explains in plain language what restoring a revision changes', function (): 
         ->relationManager(AlfaSix\AlfakitCms\Resources\PageResource\RelationManagers\RevisionsRelationManager::class)
         ->mountTableAction('compareRevision', $page->revisions()->where('number', 1)->firstOrFail())
         ->assertMountedActionModalSee('The title changes from “Second” to “First”.');
+
+    // The browser only opens a modal for actions that have one: "Compare" used to do nothing.
+    $compare = (new AlfaSix\AlfakitCms\Resources\PageResource\RelationManagers\RevisionsRelationManager($page, EditPage::class))
+        ->table(AlfaSix\Alfakit\Tables\Table::make())
+        ->getRecordActions();
+    $action = collect($compare)->first(fn (mixed $action): bool => $action instanceof AlfaSix\Alfakit\Actions\Action && $action->getName() === 'compareRevision');
+
+    expect($action?->hasModal())->toBeTrue();
 });
 
 it('shows compact block previews when turned on', function (): void {
@@ -271,4 +359,37 @@ it('shows compact block previews when turned on', function (): void {
         ->toContain('hidden');
 
     cmsPlugin()->blockPreviews(false);
+});
+
+it('reveals the translation link, layout and order with "Show advanced settings" and saves them', function (): void {
+    actingAs(cmsUser());
+    cmsPlugin()->layouts(['default' => 'Default', 'landing' => 'Landing'])->locales(['en' => 'English', 'ar' => 'العربية'])->draftChanges(false);
+    $english = cmsPage('About', ['locale' => 'en']);
+    $page = cmsPage('Arabic about', ['locale' => 'ar', 'slug' => 'arabic-about']);
+
+    $editor = alfakit()->testPage(EditPage::class, ['record' => $page], panel: 'cms')
+        ->assertFormFieldHidden('layout')
+        ->assertFormFieldHidden('sort')
+        ->assertFormFieldHidden('translation_of_id')
+        ->fillForm(['advanced' => true])
+        ->assertFormFieldVisible('layout')
+        ->assertFormFieldVisible('sort')
+        ->assertFormFieldVisible('translation_of_id');
+
+    $editor->fillForm(['layout' => 'landing', 'sort' => 3, 'translation_of_id' => $english->id])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $page->refresh();
+    expect($page->layout)->toBe('landing')
+        ->and($page->sort)->toBe(3)
+        ->and($page->translation_of_id)->toBe($english->id);
+
+    // Without layouts() there is no layout field to pick.
+    cmsPlugin()->layouts([])->locales([])->draftChanges(true);
+    alfakit()->testPage(EditPage::class, ['record' => $english], panel: 'cms')
+        ->fillForm(['advanced' => true])
+        ->assertFormFieldHidden('layout')
+        ->assertFormFieldHidden('translation_of_id')
+        ->assertFormFieldVisible('sort');
 });

@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'Veröffentlichungen zurückgezogen',
         'restored' => 'Version wiederhergestellt',
         'discarded' => 'Änderungen verworfen',
+        'nothing_to_discard' => 'Es gibt keine unveröffentlichten Änderungen zum Verwerfen',
         'template_saved' => 'Vorlage gespeichert',
     ],
 

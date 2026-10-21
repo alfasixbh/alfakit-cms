@@ -336,3 +336,23 @@ it('records the signed-in user as the author of a revision', function (): void {
 
     expect($page->revisions()->first()?->getAuthorName())->toBe('Rev Author');
 });
+
+it('labels the bar\'s save button "Save changes" for published pages when draftChanges() is off', function (): void {
+    actingAs(cmsUser());
+    $bar = function (Page $page): array {
+        $content = (fn (): array => $this->getPage()['content'])->call(alfakit()->testPage(EditPage::class, ['record' => $page], panel: 'cms'));
+
+        return collect(\AlfaSix\AlfakitCms\Tests\flattenSchema($content))->firstWhere('type', 'CmsLivePreview');
+    };
+    $live = cmsPage('Live now');
+    $draft = cmsPage('Not yet', ['status' => PageStatus::Draft]);
+
+    expect($bar($live)['actions'][0]['label'])->toBe('Save draft');
+
+    cmsPlugin()->draftChanges(false);
+
+    expect($bar($live->refresh())['actions'][0]['label'])->toBe('Save changes')
+        ->and($bar($draft->refresh())['actions'][0]['label'])->toBe('Save draft');
+
+    cmsPlugin()->draftChanges(true);
+});

@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'تم إلغاء نشر الصفحات',
         'restored' => 'تمت استعادة المراجعة',
         'discarded' => 'تم تجاهل التغييرات',
+        'nothing_to_discard' => 'لا توجد تغييرات غير منشورة لتجاهلها',
         'template_saved' => 'تم حفظ القالب',
     ],
 

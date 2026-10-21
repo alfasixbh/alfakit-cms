@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'ページを非公開にしました',
         'restored' => 'リビジョンを復元しました',
         'discarded' => '変更を破棄しました',
+        'nothing_to_discard' => '破棄する未公開の変更はありません',
         'template_saved' => 'テンプレートを保存しました',
     ],
 

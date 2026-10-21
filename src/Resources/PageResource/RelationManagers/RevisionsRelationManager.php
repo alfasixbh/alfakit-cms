@@ -6,6 +6,7 @@ namespace AlfaSix\AlfakitCms\Resources\PageResource\RelationManagers;
 
 use AlfaSix\Alfakit\Actions\Action;
 use AlfaSix\Alfakit\Resources\RelationManagers\RelationManager;
+use AlfaSix\Alfakit\Schemas\Components\Html;
 use AlfaSix\Alfakit\Support\Enums\Color;
 use AlfaSix\Alfakit\Tables\Columns\TextColumn;
 use AlfaSix\Alfakit\Tables\Table;
@@ -84,10 +85,12 @@ class RevisionsRelationManager extends RelationManager
                     ->icon('git-compare')
                     ->color(Color::Gray)
                     ->modalHeading(static fn (PageRevision $record): string => __('alfakit-cms::cms.compare.heading', ['number' => $record->number]))
-                    ->modalDescription(fn (PageRevision $record): HtmlString => new HtmlString('<ul class="list-disc ps-5 text-start">'.implode('', array_map(
+                    // Modal content, not a description: an action with neither a form, a
+                    // confirmation nor content opens no modal, so "Compare" did nothing.
+                    ->modalContent(fn (PageRevision $record): array => [Html::make(new HtmlString('<ul class="list-disc ps-5 text-start">'.implode('', array_map(
                         static fn (string $change): string => '<li>'.e($change).'</li>',
                         RevisionDiff::describe(PageRevisions::snapshot($this->getCmsPage()->withDraft()), $record->data),
-                    )).'</ul>'))
+                    )).'</ul>'))])
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel(__('alfakit-cms::cms.compare.close')),
                 Action::make('restoreRevision')

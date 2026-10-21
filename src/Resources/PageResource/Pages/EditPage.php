@@ -117,14 +117,22 @@ class EditPage extends EditRecord
     }
 
     /**
-     * "Save draft": the page stays as it is for visitors until it is published.
+     * "Save draft": the page stays as it is for visitors until it is published. With
+     * `draftChanges(false)` saving a published page makes it live at once, so the button
+     * keeps the panel's own "Save changes" label.
      */
     protected function getSaveFormAction(): Action
     {
-        return parent::getSaveFormAction()
-            ->label(__('alfakit-cms::cms.actions.save_draft'))
+        $action = parent::getSaveFormAction()
             ->color(Color::Gray)
             ->outlined();
+        $record = $this->getRecord();
+
+        if ($record instanceof Page && $record->isLive() && ! CmsPlugin::get()->keepsChangesAsDraft()) {
+            return $action;
+        }
+
+        return $action->label(__('alfakit-cms::cms.actions.save_draft'));
     }
 
     /**
@@ -193,6 +201,28 @@ class EditPage extends EditRecord
     }
 
     /**
+     * The live version (without the pending changes) as this form saves it, so an autosave
+     * of the live values (after "Discard changes", or edits typed back) leaves no draft
+     * although the form fills in defaults the stored content leaves out.
+     *
+     * @return array<string, mixed>
+     */
+    protected function getLiveFormState(Page $record): array
+    {
+        $draft = $record->draft;
+        $form = $this->cachedForm;
+        $record->draft = null;
+        $this->cachedForm = null;
+
+        try {
+            return $this->getForm()?->getState() ?? [];
+        } finally {
+            $record->draft = $draft;
+            $this->cachedForm = $form;
+        }
+    }
+
+    /**
      * Autosave the editor's current (unvalidated) state as the page's draft, for the live
      * preview and so nothing typed is lost. Live content never changes here.
      *
@@ -221,7 +251,7 @@ class EditPage extends EditRecord
         $current = $recordVersion !== null && $recordVersion !== '' && RecordVersion::matches($record, $recordVersion);
 
         $form->applyClientState($state);
-        PageDrafts::store($record, $form->getState());
+        PageDrafts::store($record, $form->getState(), $this->getLiveFormState($record));
 
         return [
             'savedAt' => $record->draft_saved_at?->toAtomString() ?? now()->toAtomString(),

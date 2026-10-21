@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'Publicaties ingetrokken',
         'restored' => 'Revisie hersteld',
         'discarded' => 'Wijzigingen verworpen',
+        'nothing_to_discard' => 'Er zijn geen ongepubliceerde wijzigingen om te verwerpen',
         'template_saved' => 'Sjabloon opgeslagen',
     ],
 

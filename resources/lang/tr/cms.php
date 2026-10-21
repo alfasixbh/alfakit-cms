@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => 'Sayfalar yayından kaldırıldı',
         'restored' => 'Sürüm geri yüklendi',
         'discarded' => 'Değişiklikler atıldı',
+        'nothing_to_discard' => 'Atılacak yayımlanmamış değişiklik yok',
         'template_saved' => 'Şablon kaydedildi',
     ],
 

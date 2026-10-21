@@ -237,6 +237,7 @@ return [
         'unpublished_bulk' => '页面已取消发布',
         'restored' => '修订已恢复',
         'discarded' => '已放弃更改',
+        'nothing_to_discard' => '没有可放弃的未发布更改',
         'template_saved' => '模板已保存',
     ],
 

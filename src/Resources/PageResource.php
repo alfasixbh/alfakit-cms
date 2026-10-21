@@ -318,6 +318,28 @@ class PageResource extends Resource
                 ->dehydrated(false)
                 ->live()
                 ->columnSpanFull(),
+            Select::make('translation_of_id')
+                ->label(__('alfakit-cms::cms.fields.translation_of'))
+                ->helperText(__('alfakit-cms::cms.fields.translation_of_help'))
+                ->options(static fn (?Model $record, Get $get): array => static::getTranslationOptions($record instanceof Page ? $record : null, $get('locale')))
+                ->searchable()
+                ->visible(static fn (Get $get): bool => $plugin->isMultilingual() && (bool) $get('advanced'))
+                ->dehydratedWhenHidden(),
+            Select::make('layout')
+                ->label(__('alfakit-cms::cms.fields.layout'))
+                ->options($plugin->getLayouts())
+                ->native(false)
+                ->visible(static fn (Get $get): bool => $plugin->getLayouts() !== [] && (bool) $get('advanced'))
+                ->dehydratedWhenHidden(),
+            TextInput::make('sort')
+                ->label(__('alfakit-cms::cms.fields.sort'))
+                ->helperText(__('alfakit-cms::cms.fields.sort_help'))
+                ->integer()
+                ->minValue(0)
+                ->default(0)
+                ->required()
+                ->visible(static fn (Get $get): bool => (bool) $get('advanced'))
+                ->dehydratedWhenHidden(),
         ];
     }
 

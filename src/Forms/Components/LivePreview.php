@@ -67,6 +67,32 @@ class LivePreview extends Component
                 ? PageResource::describeEditorStatus($page, changed: true)
                 : null,
             'actions' => $this->serializeEmbeddedActions() ?: null,
+            'changedActions' => $this->serializeChangedActions($page),
         ];
+    }
+
+    /**
+     * The actions once the draft differs from the live page ("Publish changes"), for a
+     * published page that has none yet: the renderers switch to them when an autosave
+     * reports changes, as they switch to `changedStatus`.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    protected function serializeChangedActions(?Page $page): ?array
+    {
+        if ($page === null || $page->getState() === PageState::Draft || $page->hasPendingChanges()) {
+            return null;
+        }
+
+        $attributes = $page->getAttributes();
+
+        try {
+            // Evaluated as if a draft existed; the record itself never changes.
+            $page->setAttribute('draft', ['title' => $page->getAttribute('title')]);
+
+            return $this->serializeEmbeddedActions() ?: null;
+        } finally {
+            $page->setRawAttributes($attributes);
+        }
     }
 }
