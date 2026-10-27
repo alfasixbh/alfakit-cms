@@ -11,9 +11,11 @@ use AlfaSix\AlfakitCms\Support\PagePresenter;
 use AlfaSix\AlfakitCms\Support\PreviewLinks;
 use AlfaSix\AlfakitCms\Support\Seo;
 use AlfaSix\AlfakitCms\Support\Site;
+use AlfaSix\AlfakitCms\Support\SiteDesign;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\HtmlString;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -36,8 +38,16 @@ final class CmsPageResponse
 
         $seo = is_array($payload['page']['seo'] ?? null) ? $payload['page']['seo'] : [];
 
+        $design = is_array($payload['site']['design'] ?? null) ? $payload['site']['design'] : null;
+        // `customCode()` snippets, printed by the root view; never on previews.
+        $code = $preview ? ['head' => new HtmlString(''), 'body' => new HtmlString('')] : SiteDesign::code($site);
+
         $response = Inertia::render($plugin->getInertiaComponent(), ['cms' => $payload])
-            ->withViewData(['alfakitCmsHead' => Seo::toHtml($seo)])
+            ->withViewData([
+                'alfakitCmsHead' => new HtmlString(Seo::toHtml($seo)->toHtml().SiteDesign::toHtml($design)),
+                'alfakitCmsCode' => $code['head'],
+                'alfakitCmsBodyCode' => $code['body'],
+            ])
             ->toResponse($request);
 
         if ($preview) {
@@ -81,6 +91,8 @@ final class CmsPageResponse
                 'tag' => $locale['tag'],
                 'direction' => $locale['direction'],
                 'locales' => $locales,
+                // Colours, fonts, logo and favicon from **Site design** (`siteDesign()`).
+                'design' => $plugin->hasSiteDesign() ? SiteDesign::forSite($site) : null,
             ],
             'preview' => $preview,
             'admin' => $preview ? null : self::adminBar($page, $site),

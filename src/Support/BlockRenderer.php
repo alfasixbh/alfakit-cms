@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AlfaSix\AlfakitCms\Support;
 
+use AlfaSix\AlfakitCms\Blocks\CmsBlock;
 use Throwable;
 
 /**
@@ -18,7 +19,7 @@ final class BlockRenderer
 
     /**
      * @param  mixed  $content  The stored Builder state.
-     * @return array<int, array{type: string, id: string, data: array<string, mixed>}>
+     * @return array<int, array{type: string, id: string, data: array<string, mixed>, style?: array<string, string>}>
      */
     public static function render(mixed $content, BlockContext $context): array
     {
@@ -43,7 +44,7 @@ final class BlockRenderer
             $data = is_array($item['data'] ?? null) ? $item['data'] : [];
 
             // "Hide this block": kept in the editor, never shown to visitors.
-            if ((bool) ($data[\AlfaSix\AlfakitCms\Blocks\CmsBlock::HIDDEN] ?? false)) {
+            if ((bool) ($data[CmsBlock::HIDDEN] ?? false)) {
                 continue;
             }
 
@@ -59,11 +60,18 @@ final class BlockRenderer
                 continue;
             }
 
-            $blocks[] = [
+            $entry = [
                 'type' => $item['type'],
                 'id' => ($context->depth > 0 ? 'd'.$context->depth.'-' : '').'block-'.($index + 1),
                 'data' => $rendered,
             ];
+
+            // Background, spacing, visibility and anchor from the block's **Style** section.
+            if ($context->plugin->hasSiteDesign() && ($style = CmsBlock::style($data)) !== null) {
+                $entry['style'] = $style;
+            }
+
+            $blocks[] = $entry;
         }
 
         return $blocks;

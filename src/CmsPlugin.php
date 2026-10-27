@@ -161,6 +161,10 @@ class CmsPlugin implements Plugin
 
     protected ?Closure $authorizeUsing = null;
 
+    protected bool $hasSiteDesign = true;
+
+    protected bool|Closure $customCode = false;
+
     protected ?Closure $modifySeoUsing = null;
 
     protected string|Closure|null $defaultOgImage = null;
@@ -232,6 +236,10 @@ class CmsPlugin implements Plugin
             $this->hasRedirects ? $this->redirectResource : null,
             $this->hasMenus ? $this->menuResource : null,
         ])));
+
+        if ($this->hasSiteDesign) {
+            $panel->pages([Pages\ManageSiteDesign::class]);
+        }
 
         $panel->frontendTranslations(['cms' => 'alfakit-cms::cms.ui']);
     }
@@ -948,6 +956,61 @@ class CmsPlugin implements Plugin
     public function hasAdminBar(): bool
     {
         return $this->hasAdminBar;
+    }
+
+    // ---------------------------------------------------------------- Site design
+
+    /**
+     * The **Site design** page (default): brand colours, fonts, corner radius, logo and
+     * favicon of the public site, and a **Style** section on every block.
+     */
+    public function siteDesign(bool $condition = true): static
+    {
+        $this->hasSiteDesign = $condition;
+
+        return $this;
+    }
+
+    public function hasSiteDesign(): bool
+    {
+        return $this->hasSiteDesign;
+    }
+
+    /**
+     * Custom CSS and head/body code snippets (analytics, chat widgets) on **Site design**.
+     * Off by default: code added here runs on every public page, so only allow it for
+     * people you trust with the site. `true` lets everyone who may edit the site design
+     * change it; a closure decides per user:
+     *
+     * ```php
+     * CmsPlugin::make()->customCode(fn (User $user): bool => $user->is_admin)
+     * ```
+     */
+    public function customCode(bool|Closure $condition = true): static
+    {
+        $this->customCode = $condition;
+
+        return $this;
+    }
+
+    /** Whether saved custom CSS and code reach public pages. */
+    public function hasCustomCode(): bool
+    {
+        return $this->customCode !== false;
+    }
+
+    /** Whether the user may see and change the custom CSS and code. */
+    public function canEditCustomCode(?Model $user): bool
+    {
+        if ($user === null || $this->customCode === false) {
+            return false;
+        }
+
+        if ($this->customCode === true) {
+            return true;
+        }
+
+        return (bool) $this->evaluate($this->customCode, ['user' => $user], [$user::class => $user, Model::class => $user]);
     }
 
     /**

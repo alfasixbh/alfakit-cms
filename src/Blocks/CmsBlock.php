@@ -8,10 +8,13 @@ use AlfaSix\Alfakit\Forms\Components\Builder\Block;
 use AlfaSix\Alfakit\Forms\Components\FileUpload;
 use AlfaSix\Alfakit\Forms\Components\Hidden;
 use AlfaSix\Alfakit\Forms\Components\RichEditor\RichContentRenderer;
+use AlfaSix\Alfakit\Forms\Components\Select;
 use AlfaSix\Alfakit\Forms\Components\TextInput;
 use AlfaSix\Alfakit\Forms\Components\Toggle;
 use AlfaSix\Alfakit\Schemas\Components\Component;
 use AlfaSix\Alfakit\Schemas\Components\Grid;
+use AlfaSix\Alfakit\Schemas\Components\Group;
+use AlfaSix\Alfakit\Schemas\Components\Section;
 use AlfaSix\Alfakit\Schemas\Components\Utilities\Get;
 use AlfaSix\Alfakit\Support\Url;
 use AlfaSix\AlfakitCms\CmsPlugin;
@@ -55,6 +58,20 @@ abstract class CmsBlock
 {
     /** The data key of the "Hide this block" toggle every block gets. */
     public const HIDDEN = 'cms_hidden';
+
+    /** The data key of the **Style** section every block gets (background, spacing, visibility, anchor). */
+    public const STYLE = 'cms_style';
+
+    /**
+     * Allowed values of each style option; the first is the default, which is not sent.
+     *
+     * @var array<string, array<int, string>>
+     */
+    public const STYLE_OPTIONS = [
+        'background' => ['default', 'muted', 'primary', 'secondary', 'dark'],
+        'spacing' => ['default', 'none', 'small', 'large'],
+        'visibility' => ['all', 'desktop', 'mobile'],
+    ];
 
     final public function __construct() {}
 
@@ -171,6 +188,7 @@ abstract class CmsBlock
             ->maxItems($this->getMaxItems())
             ->schema([
                 ...$this->schema(),
+                ...(CmsPlugin::get()->hasSiteDesign() ? [$this->styleSection()] : []),
                 // Switched with "Hide from visitors" in the block's menu.
                 Hidden::make(self::HIDDEN)->default(false),
             ]);
@@ -188,6 +206,70 @@ abstract class CmsBlock
         }
 
         return $block;
+    }
+
+    /**
+     * The collapsed **Style** section: background, spacing, phone/computer visibility and
+     * an anchor for in-page links (`#pricing`). Read back by `style()`.
+     */
+    protected function styleSection(): Group
+    {
+        $options = static fn (string $option): array => collect(self::STYLE_OPTIONS[$option])
+            ->mapWithKeys(static fn (string $value): array => [$value => __("alfakit-cms::cms.style.{$option}_options.{$value}")])
+            ->all();
+
+        return Group::make()->statePath(self::STYLE)->schema([
+            Section::make(__('alfakit-cms::cms.style.label'))
+                ->collapsible()
+                ->collapsed()
+                ->compact()
+                ->columns(2)
+                ->schema([
+                    Select::make('background')->label(__('alfakit-cms::cms.style.background'))->options($options('background'))->default('default')->selectablePlaceholder(false),
+                    Select::make('spacing')->label(__('alfakit-cms::cms.style.spacing'))->options($options('spacing'))->default('default')->selectablePlaceholder(false),
+                    Select::make('visibility')->label(__('alfakit-cms::cms.style.visibility'))->options($options('visibility'))->default('all')->selectablePlaceholder(false),
+                    TextInput::make('anchor')
+                        ->label(__('alfakit-cms::cms.style.anchor'))
+                        ->helperText(__('alfakit-cms::cms.style.anchor_help'))
+                        ->prefix('#')
+                        ->maxLength(64)
+                        ->regex('/^[a-z0-9][a-z0-9-]*$/'),
+                ]),
+        ])->columnSpanFull();
+    }
+
+    /**
+     * The block's style for the frontend (`block.style`): only options that differ from
+     * the default, and the anchor; null when nothing is set.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{background?: string, spacing?: string, visibility?: string, anchor?: string}|null
+     */
+    public static function style(array $data): ?array
+    {
+        $stored = $data[self::STYLE] ?? null;
+
+        if (! is_array($stored)) {
+            return null;
+        }
+
+        $style = [];
+
+        foreach (self::STYLE_OPTIONS as $option => $allowed) {
+            $value = $stored[$option] ?? null;
+
+            if (is_string($value) && $value !== $allowed[0] && in_array($value, $allowed, true)) {
+                $style[$option] = $value;
+            }
+        }
+
+        $anchor = $stored['anchor'] ?? null;
+
+        if (is_string($anchor) && preg_match('/^[a-z0-9][a-z0-9-]{0,63}$/', $anchor) === 1) {
+            $style['anchor'] = $anchor;
+        }
+
+        return $style === [] ? null : $style;
     }
 
     // ---------------------------------------------------------------- Helpers
