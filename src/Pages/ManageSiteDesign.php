@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema as DatabaseSchema;
 
 /**
  * **Site design**: the public site's brand colours, fonts, corner radius, logo and
@@ -37,6 +38,9 @@ class ManageSiteDesign extends Page
     protected static ?string $navigationIcon = 'palette';
 
     protected static ?string $slug = 'site-design';
+
+    /** @var array<string, true> Connections whose settings table exists. */
+    protected static array $migratedConnections = [];
 
     public static function getNavigationLabel(): string
     {
@@ -57,7 +61,27 @@ class ManageSiteDesign extends Page
 
     public static function canAccess(): bool
     {
-        return CmsPlugin::get()->hasSiteDesign() && CmsAuthorization::allows('update', SiteSettings::class);
+        return CmsPlugin::get()->hasSiteDesign() && static::isMigrated() && CmsAuthorization::allows('update', SiteSettings::class);
+    }
+
+    /**
+     * Whether `alfakit_cms_site_settings` exists: after an update and before `migrate`
+     * the page stays out of the navigation instead of failing.
+     */
+    protected static function isMigrated(): bool
+    {
+        $connection = (new SiteSettings)->getConnectionName() ?? (string) config('database.default');
+
+        // Only "migrated" is remembered, so a long-running worker notices a later `migrate`.
+        if (isset(static::$migratedConnections[$connection])) {
+            return true;
+        }
+
+        if (! DatabaseSchema::connection($connection)->hasTable((new SiteSettings)->getTable())) {
+            return false;
+        }
+
+        return static::$migratedConnections[$connection] = true;
     }
 
     public function getTitle(): string

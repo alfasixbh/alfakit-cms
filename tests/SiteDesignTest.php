@@ -252,3 +252,16 @@ it('saves a block\'s Style section from the page editor', function (): void {
 
     expect(inertiaGet('/styled')->json('props.cms.page.blocks.0.style'))->toBe(['background' => 'dark', 'spacing' => 'small', 'anchor' => 'intro']);
 });
+
+it('leaves Site design out until its table is migrated', function (): void {
+    actingAs(cmsUser());
+    $memo = new ReflectionProperty(ManageSiteDesign::class, 'migratedConnections');
+    $memo->setValue(null, []);
+    Illuminate\Support\Facades\Schema::drop('alfakit_cms_site_settings');
+
+    expect(ManageSiteDesign::canAccess())->toBeFalse();
+
+    (require dirname(__DIR__).'/database/migrations/2026_10_27_000000_create_alfakit_cms_site_settings_table.php')->up();
+
+    expect(ManageSiteDesign::canAccess())->toBeTrue();
+});
