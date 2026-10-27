@@ -11,6 +11,7 @@ use AlfaSix\AlfakitCms\Resources\RedirectResource\Pages\ManageRedirects;
 use AlfaSix\AlfakitCms\Support\Redirects;
 
 use function AlfaSix\AlfakitCms\Tests\cmsPage;
+use function AlfaSix\AlfakitCms\Tests\cmsPlugin;
 use function AlfaSix\AlfakitCms\Tests\cmsUser;
 use function AlfaSix\AlfakitCms\Tests\inertiaGet;
 use function Pest\Laravel\actingAs;
@@ -35,6 +36,27 @@ it('redirects exact and wildcard paths with the right status and counts hits', f
     post('/old-page')->assertStatus(405);
 
     expect($wildcard->refresh()->hits)->toBe(1)->and($wildcard->last_hit_at)->not->toBeNull();
+});
+
+it('redirects paths outside the prefix of a prefixed site, which no route matches', function (): void {
+    // `publicRoutes(prefix: 'site')`: the catch-all only covers `/site/*`.
+    cmsPlugin()->publicRoutes(prefix: 'site');
+    $router = app(Illuminate\Routing\Router::class);
+    $router->setRoutes(new Illuminate\Routing\RouteCollection);
+    AlfaSix\AlfakitCms\AlfakitCmsServiceProvider::registerRoutes($router);
+    $router->middleware('web')->get('/old-catalog/kept', fn () => 'app route');
+
+    $redirect = Redirect::query()->create(['from_path' => '/old-catalog/*', 'to_url' => '/site/products/*', 'status_code' => 301]);
+
+    get('/old-catalog/lamps?campaign=autumn')->assertStatus(301)->assertRedirect('http://localhost/site/products/lamps?campaign=autumn');
+    inertiaGet('/old-catalog/desks')->assertStatus(409)->assertHeader('X-Inertia-Location', 'http://localhost/site/products/desks');
+    // Your own routes run the redirect middleware of the web group as before.
+    get('/old-catalog/kept')->assertStatus(301)->assertRedirect('http://localhost/site/products/kept');
+    // Unknown paths without a redirect, and other methods, stay 404s.
+    get('/nowhere')->assertNotFound();
+    post('/old-catalog/lamps')->assertNotFound();
+
+    expect($redirect->refresh()->hits)->toBe(3);
 });
 
 it('sends Inertia visits to the target with a full page visit', function (): void {
