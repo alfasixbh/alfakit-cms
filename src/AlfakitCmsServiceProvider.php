@@ -12,7 +12,9 @@ use AlfaSix\AlfakitCms\Http\Controllers\RobotsController;
 use AlfaSix\AlfakitCms\Http\Controllers\SitemapController;
 use AlfaSix\AlfakitCms\Http\Middleware\HandleRedirects;
 use AlfaSix\AlfakitCms\Support\PreviewLinks;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
@@ -109,6 +111,14 @@ class AlfakitCmsServiceProvider extends ServiceProvider
         if ($panel === null) {
             return;
         }
+
+        // Paths no route matches never reach route middleware: the router's 404 is
+        // turned into the redirect instead. Costs nothing on requests that match a route.
+        $this->callAfterResolving(ExceptionHandler::class, static function (ExceptionHandler $handler): void {
+            if ($handler instanceof Handler) {
+                $handler->renderable(HandleRedirects::forUnmatchedRoute(...));
+            }
+        });
 
         $kernel = $this->app->make(Kernel::class);
 

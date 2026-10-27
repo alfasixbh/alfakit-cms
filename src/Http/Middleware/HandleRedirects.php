@@ -10,9 +10,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Applies the CMS redirects to `GET` and `HEAD` requests before routing on to the app.
+ * Applies the CMS redirects to `GET` and `HEAD` requests of the routes it runs on (the
+ * `web` group by default). Paths that match no route at all are redirected by
+ * `forUnmatchedRoute()`, which the service provider registers on the exception handler.
  * The query string is kept unless the target has its own; Inertia visits get a full
  * page visit to the target.
  */
@@ -27,6 +30,22 @@ class HandleRedirects
         }
 
         return $next($request);
+    }
+
+    /**
+     * The redirect for a request that matched no route (a 404 thrown by the router before
+     * any route middleware ran), such as an old path outside a prefixed public site.
+     * 404s of matched routes are left alone: their middleware already checked.
+     */
+    public static function forUnmatchedRoute(NotFoundHttpException $exception, Request $request): ?Response
+    {
+        if ($request->route() !== null) {
+            return null;
+        }
+
+        $site = Site::forRequest($request);
+
+        return $site !== null && $site->plugin->hasRedirects() ? static::redirectFor($request, $site) : null;
     }
 
     public static function redirectFor(Request $request, Site $site): ?Response
