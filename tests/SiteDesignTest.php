@@ -77,6 +77,67 @@ it('shows an empty color field as the default, not as a hex value', function ():
         ->and($colors->pluck('placeholder')->unique()->values()->all())->toBe(['Default']);
 });
 
+it('prints one favicon on public pages: the site design\'s, else the panel\'s', function (): void {
+    // The panel the root view prints (no panel serves the public page).
+    $panel = alfakit()->getCurrentOrDefaultPanel();
+    $panel->favicon('/panel-icon.svg');
+    // AlfaKit's root view, as in an app whose panel serves the site.
+    cmsPlugin()->rootView('alfakit::app');
+    cmsPage('About', ['slug' => 'about']);
+
+    try {
+        // No site favicon: the panel's stays.
+        $html = get('/about')->assertOk()->getContent();
+
+        expect(substr_count((string) $html, 'rel="icon"'))->toBe(1)
+            ->and($html)->toContain('href="/panel-icon.svg" data-alfakit-favicon');
+
+        Illuminate\Support\Facades\Storage::fake('public')->put('cms/site/icon.png', 'png');
+        SiteSettings::query()->create(['design' => ['favicon' => 'cms/site/icon.png']]);
+        Inertia\Inertia::flushShared();
+
+        // The site's replaces it: CmsHead (and `$alfakitCmsHead`) print it, the panel's is left out.
+        $response = get('/about')->assertOk();
+
+        expect($response->getContent())->not->toContain('panel-icon.svg')
+            ->and($response->viewData('alfakitPanelFavicon'))->toBeFalse()
+            ->and(substr_count((string) $response->viewData('alfakitCmsHead'), 'rel="icon"'))->toBe(1)
+            ->and(inertiaGet('/about')->json('props.cms.site.design.favicon'))->toBe('/storage/cms/site/icon.png');
+    } finally {
+        $panel->favicon(null);
+        cmsPlugin()->rootView(null);
+    }
+});
+
+it('sends the site design with the JSON API page, never the code snippets', function (): void {
+    cmsPlugin()->customCode();
+    cmsPage('About', ['slug' => 'about']);
+
+    Pest\Laravel\getJson('/api/cms/page?path=about')->assertOk()->assertJsonPath('site.design', null);
+
+    SiteSettings::query()->create([
+        'design' => ['primary' => '#2563eb', 'heading_font' => 'inter'],
+        'code' => ['css' => '.hero { letter-spacing: -0.02em }', 'head' => '<script src="/stats.js"></script>', 'body' => '<div id="chat-widget"></div>'],
+    ]);
+
+    $response = Pest\Laravel\getJson('/api/cms/page?path=about')->assertOk()
+        ->assertJsonPath('data.title', 'About')
+        ->assertJsonStructure(['data', 'site' => ['design' => ['css', 'fonts', 'logo', 'favicon']]]);
+
+    expect($response->json('site.design.css'))->toContain('--primary:#2563eb;')->toContain('.hero { letter-spacing: -0.02em }')
+        ->and($response->json('site.design.fonts'))->toContain('fonts.bunny.net')
+        ->and(array_keys($response->json('site.design')))->toBe(['css', 'fonts', 'logo', 'favicon'])
+        ->and($response->json('site'))->toBe(['design' => inertiaGet('/about')->json('props.cms.site.design')])
+        ->and($response->getContent())->not->toContain('stats.js')->not->toContain('chat-widget');
+
+    // The list has no design, and Site design turned off sends none.
+    expect(Pest\Laravel\getJson('/api/cms/pages')->assertOk()->json())->not->toHaveKey('site');
+
+    cmsPlugin()->siteDesign(false);
+
+    Pest\Laravel\getJson('/api/cms/page?path=about')->assertOk()->assertJsonPath('site.design', null);
+});
+
 it('refuses colors that are not hex colors', function (): void {
     actingAs(cmsUser());
 

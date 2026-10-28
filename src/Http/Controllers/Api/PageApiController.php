@@ -7,6 +7,7 @@ namespace AlfaSix\AlfakitCms\Http\Controllers\Api;
 use AlfaSix\AlfakitCms\Models\Page;
 use AlfaSix\AlfakitCms\Support\PagePresenter;
 use AlfaSix\AlfakitCms\Support\Site;
+use AlfaSix\AlfakitCms\Support\SiteDesign;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,8 @@ use Illuminate\Http\Request;
  *
  * - `GET /api/cms/pages?locale=en&per_page=50` lists them (no content);
  * - `GET /api/cms/page?path=about/team&locale=en` returns one with render-ready blocks,
- *   SEO, breadcrumbs and translations (an empty path is the home page).
+ *   SEO, breadcrumbs and translations (an empty path is the home page), plus the site design
+ *   under `site.design`.
  *
  * Drafts, scheduled pages and other tenants' pages are never returned.
  */
@@ -58,7 +60,22 @@ class PageApiController
             return response()->json(['message' => __('alfakit-cms::cms.api.not_found')], 404);
         }
 
-        return response()->json(['data' => PagePresenter::present($page, $site)]);
+        return response()->json([
+            'data' => PagePresenter::present($page, $site),
+            'site' => static::siteData($site),
+        ]);
+    }
+
+    /**
+     * The site around the page: its **Site design** (colors and custom CSS, fonts, logo,
+     * favicon), as `cms.site.design` on the Inertia route. Never the `customCode()` head and
+     * body snippets: those are only printed by the root view of the public site.
+     *
+     * @return array{design: array{css: string|null, fonts: string|null, logo: array{url: string, alt: string}|null, favicon: string|null}|null}
+     */
+    public static function siteData(Site $site): array
+    {
+        return ['design' => $site->plugin->hasSiteDesign() ? SiteDesign::forSite($site) : null];
     }
 
     /**
