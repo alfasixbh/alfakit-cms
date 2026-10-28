@@ -68,6 +68,15 @@ it('sends no design until one is saved and drops values it does not know', funct
     inertiaGet('/about')->assertJsonPath('props.cms.site.design', null);
 });
 
+it('shows an empty color field as the default, not as a hex value', function (): void {
+    actingAs(cmsUser());
+    $content = (fn (): array => $this->getPage()['content'])->call(alfakit()->testPage(ManageSiteDesign::class, panel: 'cms'));
+    $colors = collect(\AlfaSix\AlfakitCms\Tests\flattenSchema($content))->where('type', 'ColorPicker');
+
+    expect($colors)->not->toBeEmpty()
+        ->and($colors->pluck('placeholder')->unique()->values()->all())->toBe(['Default']);
+});
+
 it('refuses colors that are not hex colors', function (): void {
     actingAs(cmsUser());
 

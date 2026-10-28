@@ -120,6 +120,8 @@ class ManageSiteDesign extends Page
             ->label(__("alfakit-cms::cms.design.fields.{$name}"))
             ->helperText(__("alfakit-cms::cms.design.fields.{$name}_help"))
             ->hex()
+            // Empty keeps the site's default color: say so instead of showing a hex value.
+            ->placeholder(__('alfakit-cms::cms.design.fonts.default'))
             ->live()
             ->regex('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/');
         $image = static fn (string $name): FileUpload => FileUpload::make($name)
