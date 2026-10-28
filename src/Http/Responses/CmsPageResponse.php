@@ -47,6 +47,9 @@ final class CmsPageResponse
                 'alfakitCmsHead' => new HtmlString(Seo::toHtml($seo)->toHtml().SiteDesign::toHtml($design)),
                 'alfakitCmsCode' => $code['head'],
                 'alfakitCmsBodyCode' => $code['body'],
+                // The site's favicon (printed by `CmsHead` and `$alfakitCmsHead`) replaces the
+                // panel's, which AlfaKit's root view would print as well.
+                'alfakitPanelFavicon' => ($design['favicon'] ?? null) === null,
             ])
             ->toResponse($request);
 
